@@ -14,7 +14,7 @@ MODE_PROGRAM = 3
 RECOVER_DELAY = 0.04
 
 class EbyteModule:
-    def __init__(self, uart=1, m0=15, m1=14, aux=22):
+    def __init__(self, uart=1, rx = 5, tx = 4, m0=15, m1=14, aux=22):
 
         self.__br = ["1200", "2400", "4800", "9600", "19200", "38400", "57600", "115200"]
         self.__pr = ["8N1", "8O1", "8E1", "8N12"]
@@ -31,8 +31,8 @@ class EbyteModule:
         self._m0 = Pin(m0, Pin.OUT)  # Weak Pull UP , Pin.PULL_UP
         self._m1 = Pin(m1, Pin.OUT)  # Weak Pull UP , Pin.PULL_UP
         self._aux = Pin(aux, Pin.IN)
-        self._tx = Pin(4, Pin.OUT)
-        self._rx = Pin(5, Pin.IN)
+        self._tx = Pin(tx, Pin.OUT)
+        self._rx = Pin(rx, Pin.IN)
         self._uart = UART(uart, 9600, bits=8, parity=None, stop=1, tx=self._tx, rx=self._rx)
         self.line = ""
         self.init()
@@ -68,6 +68,23 @@ class EbyteModule:
         self.drainUartBuffer()
         self.waitForAuxLow(1000)
 
+    def configuration(self):
+        return {
+            'addr': 0x0000,
+            'br': '9600',
+            'pr': '8N1',
+            'ar': '2.4k',
+            'sp': '200 bytes',
+            'rsn': 'disabled',
+            'tp': '21dBm',
+            'ch': 23,
+            'rb': 'disabled',
+            'tm': 'TTM',
+            'lbt': 'disabled',
+            'wor': '500ms',
+            'ck': 0x0000
+        }
+
     def drainUartBuffer(self):
         """Read until no chars in the serial buffer"""
         print("Draining UART buffer")
@@ -93,23 +110,6 @@ class EbyteModule:
                 return
             sleep(0.1)
         print("Module Ready")
-
-    def configuration(self):
-        return {
-            'addr': 0xcafe,
-            'br': '9600',
-            'pr': '8N1',
-            'ar': '2.4k',
-            'sp': '200 bytes',
-            'rsn': 'disabled',
-            'tp': '30dBm',
-            'ch': 23,
-            'rb': 'disabled',
-            'tm': 'TTM',
-            'lbt': 'disabled',
-            'wor': '500ms',
-            'ck': 0xbabe
-        }
 
     def readConfiguration(self):
         self.setMode(MODE_PROGRAM)
@@ -149,45 +149,27 @@ class EbyteModule:
         self.setMode(MODE_PROGRAM)
 
         r0 = (cfg['addr'] & 0b1111111100000000) >> 8
-        print("{:02x}".format(r0))
-
         r1 = cfg['addr'] & 0b0000000011111111
-        print("{:02x}".format(r1))
-
         br = self.__br.index(cfg['br'])
         pr = self.__pr.index(cfg['pr'])
         ar = self.__ar.index(cfg['ar'])
         r2 = br << 5 | pr << 3 | ar
-        print("{:02x}".format(r2))
-
         sp = self.__sp.index(cfg['sp'])
         rsn = self.__en.index(cfg['rsn'])
         tp = self.__tp.index(cfg['tp'])
         r3 = sp << 6 | rsn << 4 | tp
-        print("{:02x}".format(r3))
-
         r4 = cfg['ch']
-        print("{:02x}".format(r4))
-
         rb = self.__en.index(cfg['rb'])
         tm = self.__tm.index(cfg['tm'])
         lbt = self.__en.index(cfg['lbt'])
         wor = self.__wor.index(cfg['wor'])
         r5 = rb << 7 | tm << 6 | lbt << 4 | wor
-        print("{:02x}".format(r5))
-
         r6 = (cfg['ck'] & 0b1111111100000000) >> 8
-        print("{:02x}".format(r6))
-
         r7 = cfg['ck'] & 0b0000000011111111
-        print("{:02x}".format(r7))
-
         self._uart.write(bytes([0xc0, 0x00, 0x08, r0, r1, r2, r3, r4, r5, r6, r7]))
-
         self._writeResponse = bytearray(8)
         bytesRead = self._uart.readinto(self._writeResponse)
-        # print(binascii.hexlify(self._writeResponse))
-
+        #print(binascii.hexlify(self._writeResponse))
         self.setMode(MODE_NORMAL)
         self.waitForAuxLow(1000)
 
@@ -203,4 +185,3 @@ class EbyteModule:
 
     def printAux(self):
         print(self._aux.value())
-
