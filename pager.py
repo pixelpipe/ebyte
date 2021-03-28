@@ -1,3 +1,8 @@
+"""
+Basic LoRa Pager by pixelpipe
+https://github.com/pixelpipe
+"""
+
 import utime
 from utime import sleep
 from machine import Pin, I2C, PWM
@@ -112,4 +117,5 @@ class Pager:
         for duty in range(25025, 0, -1):
             pwm.duty_u16(duty)
             sleep(0.0001)
+
 
